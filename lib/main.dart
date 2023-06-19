@@ -23,7 +23,7 @@ class _MyAppState extends State<MyApp> {
   String? base64Image;
   File? tmpFile;
   String erroMessage = 'Error uploading image';
-  String url = 'http://192.168.180.164/flutter_test/upload.php';
+  String url = 'http://10.200.25.41/flutter_test/upload.php';
   @override
   Widget build(BuildContext context) {
     return Scaffold(
