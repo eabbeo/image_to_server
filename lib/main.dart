@@ -1,5 +1,9 @@
+// ignore_for_file: unnecessary_null_comparison
+
 import 'dart:convert';
+//import 'dart:html';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:http/http.dart' as http;
@@ -23,7 +27,10 @@ class _MyAppState extends State<MyApp> {
   String? base64Image;
   File? tmpFile;
   String erroMessage = 'Error uploading image';
-  String url = 'http://192.168.180.164/flutter_test/upload.php';
+  String domain = '192.168.56.1';
+  String path = '/flutter_test/upload.php';
+  Uint8List? byteImage;
+  var imageBase;
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -42,12 +49,25 @@ class _MyAppState extends State<MyApp> {
               height: 20,
             ),
             if (imageFile != null)
-              Image.file(
-                File(imageFile!.path),
-                width: 300,
-                height: 300,
-                fit: BoxFit.fill,
-              ),
+              kIsWeb
+                  ? Image.network(
+                      imageFile!.path,
+                      width: 300,
+                      height: 300,
+                      fit: BoxFit.fill,
+                    )
+                  : Image.file(
+                      File(imageFile!.path),
+                      width: 300,
+                      height: 300,
+                      fit: BoxFit.fill,
+                    ),
+            // Image.file(
+            //   File(imageFile!.path),
+            //   width: 300,
+            //   height: 300,
+            //   fit: BoxFit.fill,
+            // ),
             const SizedBox(
               height: 20,
             ),
@@ -77,12 +97,20 @@ class _MyAppState extends State<MyApp> {
   chooseImage() async {
     final pickImage =
         await ImagePicker().pickImage(source: ImageSource.gallery);
+    byteImage = await pickImage!.readAsBytes();
     pickImage != null
         ? setState(() {
             imageFile = pickImage;
             File imgFile = File(imageFile!.path);
             tmpFile = imgFile;
-            base64Image = base64Encode(imgFile.readAsBytesSync());
+            kIsWeb
+                ? byteImage
+                : base64Image = base64Encode(imgFile.readAsBytesSync());
+            if (byteImage == null) {
+              imageBase = base64Image;
+            } else {
+              imageBase = byteImage;
+            }
           })
         : const Text('Error getting image');
   }
@@ -95,8 +123,8 @@ class _MyAppState extends State<MyApp> {
   }
 
   //Start upload
-  startUpload() {
-    print('Base 64 is $base64Image');
+  startUpload() async {
+    print('Base 64 is $imageBase');
 
     setStatus('Uploading image');
     if (tmpFile == null) {
@@ -107,17 +135,22 @@ class _MyAppState extends State<MyApp> {
     upload(filename);
   }
 
-  upload(String filename) {
-    print('Filename is $filename');
-    http.post(Uri.parse(url), body: {
-      //
-
-      "image": base64Image,
-      "name": filename,
-    }).then((value) {
-      setStatus(
-          value.statusCode == 200 ? value.body : value.statusCode.toString());
-    });
+  upload(String filename) async {
+    try {
+      print('Filename is $filename');
+      var response = await http.post(Uri.http(domain, path), body: {
+        //
+        "image": imageBase.toString(),
+        "name": "$filename.jpg",
+      });
+      if (response.statusCode == 200) {
+        status = 'Upload Successful';
+      } else {
+        status = 'Error uploading';
+      }
+    } catch (e) {
+      status = e.toString();
+    }
     // .catchError( setStatus(erroMessage));
   }
 }
